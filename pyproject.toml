@@ -1,0 +1,35 @@
+[project]
+name = "releaseguard"
+version = "0.1.0"
+description = "CI/CD test infrastructure with config-drift detection"
+requires-python = ">=3.11"
+dependencies = ["pytest>=8.3"]
+
+[project.optional-dependencies]
+dev = ["ruff>=0.7"]
+yaml = ["pyyaml>=6.0"]
+
+[project.scripts]
+rg = "releaseguard.cli:main"
+
+[project.entry-points.pytest11]
+releaseguard = "releaseguard.plugin"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["releaseguard*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "RUF"]
+ignore = ["S101", "S603", "S607", "E501"]

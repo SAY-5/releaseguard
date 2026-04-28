@@ -1,0 +1,18 @@
+targets:
+  - name: prod-like
+    image: python:3.12-slim
+    expected_env:
+      ENVIRONMENT: prod
+      PYTHON_VERSION: "3.12"
+    expected_packages:
+      - pytest>=8.0
+    exec_probes:
+      - python -c "import sys; assert sys.version_info >= (3, 12)"
+    pytest_args: ["-q", "tests/"]
+
+  - name: staging-py311
+    image: python:3.11-slim
+    inherit_from: prod-like
+    expected_env:
+      ENVIRONMENT: staging
+      PYTHON_VERSION: "3.11"
