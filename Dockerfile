@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY pyproject.toml ./
 RUN pip install --upgrade pip && pip install ".[dev]"
 COPY releaseguard ./releaseguard
-COPY web ./web
+# The HTML report is generated from a JSON file via `rg report --html`;
+# there are no static web assets to copy.
 
 RUN useradd -u 10001 -m rg && chown -R rg /srv
 USER rg
