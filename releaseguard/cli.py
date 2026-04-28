@@ -44,6 +44,12 @@ def cmd_drift(args: argparse.Namespace) -> int:
 
 def cmd_report(args: argparse.Namespace) -> int:
     data = json.loads(Path(args.report).read_text())
+    if args.html:
+        from releaseguard.html_report import write as write_html
+        out = Path(args.html)
+        write_html(Path(args.report), out)
+        print(f"wrote {out}")
+        return 0
     print(json.dumps(data, indent=2))
     return 0
 
@@ -64,8 +70,9 @@ def main(argv: list[str] | None = None) -> int:
     pd.add_argument("--manifest", default="targets.yaml")
     pd.set_defaults(fn=cmd_drift)
 
-    pp = sub.add_parser("report", help="Pretty-print a saved report JSON.")
+    pp = sub.add_parser("report", help="Pretty-print or render a saved report JSON.")
     pp.add_argument("report")
+    pp.add_argument("--html", help="Write self-contained HTML report to PATH")
     pp.set_defaults(fn=cmd_report)
 
     args = p.parse_args(argv if argv is not None else sys.argv[1:])

@@ -17,6 +17,19 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check releaseguard tests
       - run: pytest -q
+      - name: render html report
+        if: always()
+        run: |
+          if [ -f runs/report.json ]; then
+            rg report runs/report.json --html runs/report.html
+          fi
+      - name: upload report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: releaseguard-report
+          path: runs/
+          if-no-files-found: ignore
 
   docker:
     runs-on: ubuntu-latest
