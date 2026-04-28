@@ -106,7 +106,7 @@ def _run_probe(probe: str, expect: str | None) -> dict:
             ["/bin/sh", "-c", cmd],
             capture_output=True, text=True, check=False, timeout=10,
         )
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         return {"ok": False, "detail": f"probe error: {e}"}
     if proc.returncode != 0:
         return {"ok": False, "detail": f"exit {proc.returncode}: {proc.stderr.strip()[:200]}"}

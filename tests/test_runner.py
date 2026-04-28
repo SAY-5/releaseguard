@@ -4,8 +4,6 @@ outcomes."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from releaseguard.report import RunReport
 from releaseguard.runner import run_all
 from releaseguard.targets import TargetSpec
@@ -43,7 +41,7 @@ def test_runner_failing_suite(tmp_path):
     assert report.overall_status == "failed"
     run = report.runs[0]
     assert run.summary()["failed"] == 1
-    failed = [o for o in run.outcomes if o.outcome == "failed"][0]
+    failed = next(o for o in run.outcomes if o.outcome == "failed")
     assert failed.fingerprint  # populated
 
 

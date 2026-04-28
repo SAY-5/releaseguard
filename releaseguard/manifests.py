@@ -77,11 +77,9 @@ def _parse_block(lines: list[str], idx: int, indent: int):
                 out = []
             item_text = stripped[2:]
             if ":" in item_text and not item_text.startswith('"'):
-                # an inline key on the same line as the dash; rewrite as block
-                rewritten = [item_text] + lines[idx + 1:]
-                # Indent of the block under the dash is indent+2
-                # We treat dash item as an isolated block.
-                # Find the next item at same indent (dash) or shallower
+                # An inline key on the same line as the dash. Treat
+                # the dash item as an isolated block: collect
+                # following lines until the indent climbs back out.
                 end = idx + 1
                 while end < len(lines):
                     ln = lines[end]
@@ -89,7 +87,7 @@ def _parse_block(lines: list[str], idx: int, indent: int):
                     if li < cur_indent + 2:
                         break
                     end += 1
-                sub_lines = [item_text] + [ln[2:] for ln in lines[idx + 1:end]]
+                sub_lines = [item_text, *(ln[2:] for ln in lines[idx + 1:end])]
                 d, _ = _parse_block(sub_lines, 0, 0)
                 out.append(d)
                 idx = end
@@ -121,9 +119,12 @@ def _parse_scalar(s: str):
     s = s.strip()
     if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
         return s[1:-1]
-    if s == "true":  return True
-    if s == "false": return False
-    if s == "null":  return None
+    if s == "true":
+        return True
+    if s == "false":
+        return False
+    if s == "null":
+        return None
     try:
         return int(s)
     except ValueError:

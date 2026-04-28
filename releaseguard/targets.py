@@ -50,7 +50,7 @@ class TargetSpec:
     exec_probes: list[str] = field(default_factory=list)
     pytest_args: list[str] = field(default_factory=lambda: ["-q"])
 
-    def merged_with(self, other: "TargetSpec") -> "TargetSpec":
+    def merged_with(self, other: TargetSpec) -> TargetSpec:
         """Apply `self` *on top of* `other` (self wins on conflicts)."""
         return TargetSpec(
             name=self.name,
@@ -127,7 +127,7 @@ class Docker:
             env_args += ["-e", f"{k}={v}"]
         for k, v in self.extra_env.items():
             env_args += ["-e", f"{k}={v}"]
-        full = [self.docker_bin, "exec"] + env_args + [self.container_id] + cmd
+        full = [self.docker_bin, "exec", *env_args, self.container_id, *cmd]
         proc = subprocess.run(full, capture_output=True, text=True, check=False)
         if check and proc.returncode != 0:
             raise RuntimeError(

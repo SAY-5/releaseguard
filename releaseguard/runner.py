@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from releaseguard.drift import check_drift, fingerprint
@@ -25,16 +25,16 @@ def run_target(spec: TargetSpec, target: Target,
 
     target.setup()
     try:
-        started = datetime.now(timezone.utc).isoformat()
+        started = datetime.now(UTC).isoformat()
         drift = check_drift(target, spec)
         # Run pytest with the plugin so we get structured per-test events.
         # The plugin auto-loads via the pytest11 entry point; we just
         # supply --rg-out so it knows where to write events.
         pytest_cmd = [_python(), "-m", "pytest",
-                      "--rg-out", str(rg_out)] + spec.pytest_args
+                      "--rg-out", str(rg_out), *spec.pytest_args]
         target.run(pytest_cmd, env={k: v for k, v in spec.expected_env.items() if v})
         outcomes = _read_outcomes(rg_out)
-        ended = datetime.now(timezone.utc).isoformat()
+        ended = datetime.now(UTC).isoformat()
     finally:
         target.teardown()
 

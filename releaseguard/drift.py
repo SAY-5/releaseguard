@@ -148,10 +148,14 @@ def _version_matches(actual: str, op: str, want: str) -> bool:
         return actual == want
     a = _ver_tuple(actual)
     w = _ver_tuple(want)
-    if op == ">=": return a >= w
-    if op == "<=": return a <= w
-    if op == ">":  return a > w
-    if op == "<":  return a < w
+    if op == ">=":
+        return a >= w
+    if op == "<=":
+        return a <= w
+    if op == ">":
+        return a > w
+    if op == "<":
+        return a < w
     if op == "~=":
         # Compatible release: same major.minor, patch ≥ want.
         return a[:2] == w[:2] and a >= w
