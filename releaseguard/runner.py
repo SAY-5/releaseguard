@@ -66,6 +66,8 @@ def _read_outcomes(path: Path) -> list[TestOutcome]:
             file=r.get("file", ""),
             line=int(r.get("line", 0)),
             longrepr=r.get("longrepr", ""),
+            attempts=int(r.get("attempts", 1)),
+            flaky=bool(r.get("flaky", False)),
         )
         o.fill_fingerprint()
         out.append(o)

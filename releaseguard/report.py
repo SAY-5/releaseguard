@@ -15,12 +15,14 @@ from releaseguard.drift import DriftReport
 @dataclass
 class TestOutcome:
     nodeid: str
-    outcome: str          # "passed" | "failed" | "skipped"
+    outcome: str          # "passed" | "failed" | "skipped" | "flaky"
     duration_s: float
     file: str
     line: int = 0
     longrepr: str = ""
     fingerprint: str = ""
+    attempts: int = 1     # how many tries before final state
+    flaky: bool = False
 
     def fill_fingerprint(self) -> None:
         first_line = (self.longrepr or "").splitlines()[0] if self.longrepr else ""
@@ -41,9 +43,16 @@ class TargetRun:
     outcomes: list[TestOutcome] = field(default_factory=list)
 
     def summary(self) -> dict[str, int]:
-        s = {"passed": 0, "failed": 0, "skipped": 0}
+        # 'flaky' is a sub-classification of 'passed' — the test ran
+        # green eventually, but only after a retry. Surface both
+        # numbers so dashboards can pick the right denominator.
+        s = {"passed": 0, "failed": 0, "skipped": 0, "flaky": 0}
         for o in self.outcomes:
-            s[o.outcome] = s.get(o.outcome, 0) + 1
+            if o.outcome == "flaky":
+                s["passed"] += 1
+                s["flaky"] += 1
+            else:
+                s[o.outcome] = s.get(o.outcome, 0) + 1
         return s
 
 

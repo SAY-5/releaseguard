@@ -38,6 +38,14 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--rg-fail-on-drift", action="store_true",
         help="Fail the pytest run if any drift_check probe fails",
     )
+    parser.addoption(
+        "--rg-flaky-retries", type=int, default=0,
+        help="Re-run failed tests up to N times. A test that fails first "
+             "and passes on retry is recorded as outcome='flaky' on the "
+             "event line. The pytest run's exit status reflects the FINAL "
+             "result (passed if it eventually passed); the JSONL captures "
+             "the flake for the report.",
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
@@ -57,6 +65,12 @@ def pytest_configure(config: pytest.Config) -> None:
         config.getoption("--rg-fail-on-drift")
     )
     pytest_runtest_logreport._cache = {}  # type: ignore[attr-defined]
+    pytest_runtest_logreport._flaky_retries = int(  # type: ignore[attr-defined]
+        config.getoption("--rg-flaky-retries") or 0
+    )
+    # Per-nodeid attempt counter — distinguishes the original failure
+    # from a retry pass.
+    pytest_runtest_logreport._attempts = {}  # type: ignore[attr-defined]
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -75,6 +89,36 @@ def pytest_runtest_makereport(item, call):  # type: ignore[no-untyped-def]
                 + "; ".join(f"{d['name']}: {d.get('detail','')}"
                             for d in drift if not d["ok"])
             )
+
+    # Flaky-retry hook. We track per-nodeid attempts in a session
+    # counter; if this is the first failure and retries remain, we
+    # rewind the test's call phase by clearing its outcome and
+    # invoking it again. Subsequent passes are stamped 'flaky' on
+    # the event line so the report distinguishes them from clean
+    # passes.
+    attempts: dict[str, int] = getattr(pytest_runtest_logreport, "_attempts", {})
+    max_retries: int = getattr(pytest_runtest_logreport, "_flaky_retries", 0)
+    nodeid = item.nodeid
+    cur = attempts.get(nodeid, 0)
+    rep._rg_attempt = cur  # 0 = first run, 1 = retry, ...
+    if rep.failed and max_retries > 0 and cur < max_retries:
+        # Re-execute the test in-place. Pytest's runner calls
+        # `item.runtest()`; we trap any new exception and wrap a
+        # fresh report so the outcome reflects the retry.
+        attempts[nodeid] = cur + 1
+        try:
+            item.runtest()
+            # Passed on retry → flaky.
+            rep.outcome = "passed"
+            rep.longrepr = None
+            rep._rg_attempt = cur + 1
+            rep._rg_flaky = True  # consumed by pytest_runtest_logreport
+        except BaseException as e:  # noqa: BLE001
+            # Still failing — keep the original failure surface but
+            # bump attempt count.
+            rep._rg_attempt = cur + 1
+            rep._rg_flaky = False
+            rep.longrepr = f"{rep.longrepr}\n[retry {cur+1}] also failed: {e!r}"
 
 
 def _evaluate_drift_markers(item) -> list[dict]:  # type: ignore[no-untyped-def]
@@ -122,14 +166,23 @@ def _run_probe(probe: str, expect: str | None) -> dict:
 def pytest_runtest_logreport(report: pytest.TestReport) -> None:
     if report.when != "call" and not (report.when == "setup" and report.skipped):
         return
+    flaky = bool(getattr(report, "_rg_flaky", False))
+    # 'flaky' becomes its own outcome on the event line for the
+    # report — pytest itself still sees the test as 'passed' so the
+    # exit status reflects the final state. The runner / report layer
+    # collapse 'flaky' back to 'passed' in summary counts but
+    # surface them separately.
+    surfaced_outcome = "flaky" if flaky else report.outcome
     out: dict[str, Any] = {
         "nodeid": report.nodeid,
-        "outcome": report.outcome,
+        "outcome": surfaced_outcome,
         "duration": report.duration,
         "longrepr": str(report.longrepr) if report.failed else "",
         "file": str(getattr(report, "fspath", "") or ""),
         "line": int(getattr(report, "lineno", 0) or 0),
         "drift_checks": getattr(report, "_rg_drift", None) or [],
+        "attempts": int(getattr(report, "_rg_attempt", 0)) + 1,
+        "flaky": flaky,
     }
     sink = getattr(pytest_runtest_logreport, "_sink", None)
     if sink is None:
