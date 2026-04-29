@@ -113,7 +113,7 @@ def pytest_runtest_makereport(item, call):  # type: ignore[no-untyped-def]
             rep.longrepr = None
             rep._rg_attempt = cur + 1
             rep._rg_flaky = True  # consumed by pytest_runtest_logreport
-        except BaseException as e:  # noqa: BLE001
+        except BaseException as e:
             # Still failing — keep the original failure surface but
             # bump attempt count.
             rep._rg_attempt = cur + 1
